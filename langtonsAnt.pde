@@ -1,6 +1,7 @@
 /* 
 Langton's Ant
 Written by Jimmie Rodgers 9/16/15
+Written in Processing 3.0b6
 
 This is a simple two dimentional turring machine.
 The "ant" will move left if the square is empty, or
@@ -24,27 +25,31 @@ s     = saves the current frame
 v     = fills in all blank space till voidThreshold is met
 n     = new grid, clears the grid of all colors, but leave the ants
 r     = randomizes ant coordinates and directions, does not clear the grid
+x     = starts/stops auto recording
 +     = multiplies the generationJump by 10
 -     = divides the generationJump by 10
 
 */
 
 // Set the following variables to change program settings.
+boolean screenSaver = true; // runs the program in fullscreen, and sets the size based on screen resolution
+                            // screenSaver will respect the block size
 int xSize           = 960;  // number of blocks wide
 int ySize           = 540;  // number of blocks tall
-int blockSize       = 2;    // size of each block
+int blockSize       = 4;    // size of each block
 boolean worldWrap   = true; // whether the ants wrap around or just "bounce" off the walls
 int numAnts         = 7;    // number of ants you want
 long generationJump = 100;  // the number of generations that will jump between frames
                             // set it to 1 to show every one, or very high for crazy images at high res
                             // high generationJump can take significant processing time
-
+                               
 boolean autoAdvance    = true;  // whether the frame advances automatically. Otherwise you have to press space
 boolean randomColors   = false; // random colors[] will be chosen, overides sequenceColors
 boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set)
+boolean showAnts       = true;  // good if you just want the colors to show in large grid sizes.
 boolean showGrid       = false; // better for smaller resolutions and large block sizes 
 boolean border         = false; // creates a one block wide border around the image
-boolean fillVoid       = false; // keeps running generations till there is no space larger than voidThreshold
+boolean fillVoid       = false; // keeps running generations at setup() till there is no space larger than voidThreshold
 int voidThreshold      = 100;   // maximum number of sequential blank spaces before it runs a generation
                                 // if you set voidThreshold too low, it will never stop running for large grids
 
@@ -71,41 +76,60 @@ final byte down  = 2;
 final byte left  = 3;
 
 // creates the grid and the ants
-int grid[][] = new int[xSize][ySize];
+int grid[][];
 Ant[] ants = new Ant[numAnts];
+boolean gridHasChanged = false;
 
-void settings(){
-  // settings() is new in 3.0+, but this sets the frame size depending on whether you want a border
-  if (border) size((xSize*blockSize + 2*blockSize), (ySize*blockSize + 2*blockSize));
-  else size((xSize*blockSize), (ySize*blockSize));
+void settings(){ // settings() is new in 3.0+
+  if (screenSaver){
+    size(displayWidth, displayHeight);
+    pixelDensity(displayDensity());
+    xSize = displayWidth/blockSize;
+    ySize = displayHeight/blockSize;
+    fullScreen(); 
+  }
+  else {
+    // this sets the frame size depending on whether you want a border
+    if (border) size((xSize*blockSize + 2*blockSize), (ySize*blockSize + 2*blockSize));
+    else size((xSize*blockSize), (ySize*blockSize));
+  }
 }
 
 void setup() {
+  grid = new int[xSize][ySize];
   zeroGrid();
   showGrid();
   // actually creates the ants
   for (int i = 0; i < numAnts; i++) {
     int tempColor = int(random(colors.length));
     if (randomColors) ants[i] = new Ant(colors[tempColor], #FFFFFF);
-    else if (sequenceColors) ants[i] = new Ant(colors[i], #FFFFFF);
+    else if (sequenceColors) ants[i] = new Ant(colors[i%colors.length], #FFFFFF);
     else ants[i] = new Ant();
   }
   if (fillVoid) intoTheVoid(); // fills the initial frame up if that option is selected
 }
 
 void draw() {
-  clear();
-  background(background);
   if (autoAdvance) advanceGenerations();
-  showGrid(); 
-  for (int i = 0; i < numAnts; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
   if (autoSave) if (frameCount <= maxFrames) saveFrame(fileName);
+  if (gridHasChanged) {
+    showGrid();
+    if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
+  }
+  else noLoop();
+}
+
+void createGrid( int xTemp, int yTemp){
+   grid = new int[xTemp][yTemp];
 }
 
 void keyPressed() {
   if (key == 's') saveFrame(fileName);
   if (key == ' ') advanceGenerations();
-  if (key == 'a') autoAdvance = !autoAdvance;
+  if (key == 'a') {
+    autoAdvance = !autoAdvance;
+    if (autoAdvance) loop();
+  }
   if (key == 'n') zeroGrid();
   if (key == '+') generationJump *= 10;
   if (key == '-') {
@@ -114,6 +138,7 @@ void keyPressed() {
   }
   if (key == 'v') intoTheVoid();
   if (key == 'r') for (int i = 0; i < numAnts; i++) ants[i].randomDirection();
+  if (key == 'x') autoSave = !autoSave;
 }  
 
 // will advance all ants generationJump generations of movement
@@ -123,6 +148,8 @@ void advanceGenerations(){
       ants[i].move();
     }
   }
+  gridHasChanged = true;
+  loop();
 }
 
 // this will keep calling advanceGenerations() till there are fewer than voidThreshold blank spaces
@@ -130,15 +157,15 @@ void intoTheVoid(){
   int count = 0;
   while (true){
     for (int x = 0; x < xSize; x++) {
+      count = 0;
       for (int y = 0; y < ySize; y++) {
         if (grid[x][y] == 0) count++;
         else if (grid[x][y] > 0) count = 0;
         if (count > voidThreshold) {
           advanceGenerations();
           count = 0;
-         }
+        }
       }
-      count = 0;
     }
     if (count < voidThreshold) break;
     else count = 0;
@@ -147,6 +174,8 @@ void intoTheVoid(){
 
 // displays the grid
 void showGrid() {
+  clear();
+  background(background);
   if (showGrid) stroke(gridColor);
   else noStroke();
   for (int x = 0; x < xSize; x++) {
@@ -157,6 +186,7 @@ void showGrid() {
       else rect(x*blockSize, y*blockSize, blockSize, blockSize);
     }
   }
+  gridHasChanged = false;
 }
 
 // clears all colored spaces, but does nothing to the ants
