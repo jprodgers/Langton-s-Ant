@@ -33,7 +33,7 @@ x     = starts/stops auto recording
 
 // Set the following variables to change program settings.
 boolean screenSaver = true; // runs the program in fullscreen, and sets the size based on screen resolution
-                            // screenSaver will respect the block size
+                            // screenSaver will respect the block size. Press Esc to quit.
 int xSize           = 960;  // number of blocks wide
 int ySize           = 540;  // number of blocks tall
 int blockSize       = 4;    // size of each block
@@ -75,6 +75,11 @@ final byte right = 1;
 final byte down  = 2;
 final byte left  = 3;
 
+int mouseColor;                // place for the mouse color when you click, by default it will be colors[0]
+int colorSelect = 0;           // used to track where in colors[] the mouse color is
+int borderXSize = blockSize;   // used to center the border on X
+int borderYSize = blockSize;   // used to center the border on Y
+
 // creates the grid and the ants
 int grid[][];
 Ant[] ants = new Ant[numAnts];
@@ -86,6 +91,12 @@ void settings(){ // settings() is new in 3.0+
     pixelDensity(displayDensity());
     xSize = displayWidth/blockSize;
     ySize = displayHeight/blockSize;
+    borderXSize = (displayWidth-(blockSize * xSize)) / 2; 
+    borderYSize = (displayHeight-(blockSize * ySize)) / 2;
+    if (border == false) {
+      border = true;
+      background = backColor;
+    }
     fullScreen(); 
   }
   else {
@@ -98,7 +109,6 @@ void settings(){ // settings() is new in 3.0+
 void setup() {
   grid = new int[xSize][ySize];
   zeroGrid();
-  showGrid();
   // actually creates the ants
   for (int i = 0; i < numAnts; i++) {
     int tempColor = int(random(colors.length));
@@ -107,15 +117,15 @@ void setup() {
     else ants[i] = new Ant();
   }
   if (fillVoid) intoTheVoid(); // fills the initial frame up if that option is selected
+  mouseColor = colors[colorSelect];
+  showGrid();
+  if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); 
 }
 
 void draw() {
   if (autoAdvance) advanceGenerations();
   if (autoSave) if (frameCount <= maxFrames) saveFrame(fileName);
-  if (gridHasChanged) {
-    showGrid();
-    if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
-  }
+  if (gridHasChanged) showGrid();
   else noLoop();
 }
 
@@ -137,9 +147,36 @@ void keyPressed() {
     if (generationJump < 1) generationJump = 1;
   }
   if (key == 'v') intoTheVoid();
-  if (key == 'r') for (int i = 0; i < numAnts; i++) ants[i].randomDirection();
+  if (key == 'r') {
+    for (int i = 0; i < numAnts; i++) ants[i].randomDirection();
+    gridHasChanged = true;
+    loop();
+  }
   if (key == 'x') autoSave = !autoSave;
 }  
+
+void mousePressed() {
+  if (mouseButton == LEFT) {
+    if (border) grid[(mouseX-borderXSize)/blockSize][(mouseY-borderYSize)/blockSize] = mouseColor;
+    else grid[mouseX/blockSize][mouseY/blockSize] = mouseColor;
+    gridHasChanged = true;
+  }
+  if (mouseButton == RIGHT) {
+    colorSelect = (colorSelect+1) % colors.length;
+    mouseColor = colors[colorSelect];
+  }
+  loop();
+}
+
+void mouseDragged(){
+  if (mouseButton == LEFT) {
+    if (border) grid[(mouseX-borderXSize)/blockSize][(mouseY-borderYSize)/blockSize] = mouseColor;
+    else grid[mouseX/blockSize][mouseY/blockSize] = mouseColor;
+    gridHasChanged = true;
+  }
+  loop();
+}
+    
 
 // will advance all ants generationJump generations of movement
 void advanceGenerations(){
@@ -182,10 +219,11 @@ void showGrid() {
     for (int y = 0; y < ySize; y++) {
       if (grid[x][y] == 0) fill(backColor); 
       else fill(grid[x][y]);
-      if (border) rect(x*blockSize + blockSize, y*blockSize + blockSize, blockSize, blockSize);
+      if (border) rect(x*blockSize + borderXSize, y*blockSize + borderYSize, blockSize, blockSize);
       else rect(x*blockSize, y*blockSize, blockSize, blockSize);
     }
   }
+  if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
   gridHasChanged = false;
 }
 
@@ -194,6 +232,8 @@ void zeroGrid() {
   for (int x = 0; x < xSize; x++)
     for (int y = 0; y < ySize; y++)
       grid[x][y] = 0;
+  gridHasChanged = true;
+  loop();
 }
 
 // the Ant will follow the basic Lanton's Ant rules when asked nicely.
@@ -302,7 +342,7 @@ class Ant {
   // shows the current location of the Ant
   void show() {
     fill(antColor);
-    if (border) ellipse(antX*blockSize + blockSize*1.5, antY*blockSize + blockSize*1.5, blockSize, blockSize);
+    if (border) ellipse(antX*blockSize + blockSize*0.5 + borderXSize, antY*blockSize + blockSize*0.5 + borderYSize, blockSize, blockSize);
     else ellipse(antX*blockSize + blockSize*0.5, antY*blockSize + blockSize*0.5, blockSize, blockSize);
   }
   
