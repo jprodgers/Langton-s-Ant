@@ -29,14 +29,16 @@ t     = seeds the grid with random colors based on randomThreshold
 x     = starts/stops auto recording
 +     = multiplies the generationJump by 10
 -     = divides the generationJump by 10
+[     = deletes one ant
+]     = creates a new ant
 
 */
 
 // Set the following variables to change program settings.
 boolean screenSaver = true; // runs the program in fullscreen, and sets the size based on screen resolution
                             // screenSaver will respect the block size. Press Esc to quit.
-int xSize           = 960;  // number of blocks wide
-int ySize           = 540;  // number of blocks tall
+int xSize           = 600;  // number of blocks wide
+int ySize           = 400;  // number of blocks tall
 int blockSize       = 4;    // size of each block
 boolean worldWrap   = true; // whether the ants wrap around or just "bounce" off the walls
 int numAnts         = 7;    // number of ants you want
@@ -113,7 +115,7 @@ void setup() {
   grid = new int[xSize][ySize];
   zeroGrid();
   // actually creates the ants
-  for (int i = 0; i < numAnts; i++) {
+  for (int i = 0; i < ants.length; i++) {
     int tempColor = int(random(colors.length));
     if (randomColors) ants[i] = new Ant(colors[tempColor], #FFFFFF);
     else if (sequenceColors) ants[i] = new Ant(colors[i%colors.length], #FFFFFF);
@@ -123,7 +125,7 @@ void setup() {
   if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
   mouseColor = colors[colorSelect]; // sets the mouse color
   showGrid();
-  if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); 
+  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show(); 
 }
 
 void draw() {
@@ -148,11 +150,24 @@ void keyPressed() {
   }
   if (key == 'v') intoTheVoid();
   if (key == 'r') {
-    for (int i = 0; i < numAnts; i++) ants[i].randomDirection();
+    for (int i = 0; i < ants.length; i++) ants[i].randomDirection();
     changeGrid();
   }
   if (key == 'x') autoSave = !autoSave;
   if (key == 't') randomSeedGrid();
+  if (key == '[') {
+    if (ants.length > 0) {
+      ants = (Ant[]) shorten(ants);
+      changeGrid();
+    }
+  }
+  if (key == ']') {
+    int tempColor = int(random(colors.length));
+    ants = (Ant[]) expand(ants, ants.length+1);
+    if (randomColors) ants[ants.length] = new Ant(colors[tempColor], #FFFFFF);
+    else if (sequenceColors) ants[ants.length-1] = new Ant(colors[(ants.length-1)%colors.length], #FFFFFF);
+    changeGrid();
+  }
 }  
 
 void mousePressed() {
@@ -183,7 +198,7 @@ void changeGrid(){
 // will advance all ants generationJump generations of movement
 void advanceGenerations(){
   for (int count = 0; count < generationJump; count++) {
-    for (int i = 0; i < numAnts; i++) {
+    for (int i = 0; i < ants.length; i++) {
       ants[i].move();
     }
   }
@@ -243,7 +258,7 @@ void showGrid() {
       else rect(x*blockSize, y*blockSize, blockSize, blockSize);
     }
   }
-  if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
+  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
   gridHasChanged = false;
 }
 
