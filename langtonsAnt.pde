@@ -25,6 +25,7 @@ s     = saves the current frame
 v     = fills in all blank space till voidThreshold is met
 n     = new grid, clears the grid of all colors, but leave the ants
 r     = randomizes ant coordinates and directions, does not clear the grid
+t     = seeds the grid with random colors based on randomThreshold
 x     = starts/stops auto recording
 +     = multiplies the generationJump by 10
 -     = divides the generationJump by 10
@@ -44,11 +45,13 @@ long generationJump = 100;  // the number of generations that will jump between 
                             // high generationJump can take significant processing time
                                
 boolean autoAdvance    = true;  // whether the frame advances automatically. Otherwise you have to press space
-boolean randomColors   = false; // random colors[] will be chosen, overides sequenceColors
-boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set)
-boolean showAnts       = true;  // good if you just want the colors to show in large grid sizes.
-boolean showGrid       = false; // better for smaller resolutions and large block sizes 
+boolean randomColors   = false; // random ant colors[] will be chosen, overides sequenceColors
+boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set) to ants
+boolean showAnts       = true;  // disable if you just want the colors to show
+boolean showGrid       = false; // better for smaller resolutions and/or large block sizes 
 boolean border         = false; // creates a one block wide border around the image
+boolean randomSeed     = false; // this will seed the grid randomly with colors on startup
+float randomThreshold  = 1.0;   // percent of cells that will be colored via randomSeed
 boolean fillVoid       = false; // keeps running generations at setup() till there is no space larger than voidThreshold
 int voidThreshold      = 100;   // maximum number of sequential blank spaces before it runs a generation
                                 // if you set voidThreshold too low, it will never stop running for large grids
@@ -116,8 +119,9 @@ void setup() {
     else if (sequenceColors) ants[i] = new Ant(colors[i%colors.length], #FFFFFF);
     else ants[i] = new Ant();
   }
-  if (fillVoid) intoTheVoid(); // fills the initial frame up if that option is selected
-  mouseColor = colors[colorSelect];
+  if (randomSeed) randomSeedGrid(); // seeds the grid randomly if selected
+  if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
+  mouseColor = colors[colorSelect]; // sets the mouse color
   showGrid();
   if (showAnts) for (int i = 0; i < numAnts; i++) ants[i].show(); 
 }
@@ -127,10 +131,6 @@ void draw() {
   if (autoSave) if (frameCount <= maxFrames) saveFrame(fileName);
   if (gridHasChanged) showGrid();
   else noLoop();
-}
-
-void createGrid( int xTemp, int yTemp){
-   grid = new int[xTemp][yTemp];
 }
 
 void keyPressed() {
@@ -149,34 +149,36 @@ void keyPressed() {
   if (key == 'v') intoTheVoid();
   if (key == 'r') {
     for (int i = 0; i < numAnts; i++) ants[i].randomDirection();
-    gridHasChanged = true;
-    loop();
+    changeGrid();
   }
   if (key == 'x') autoSave = !autoSave;
+  if (key == 't') randomSeedGrid();
 }  
 
 void mousePressed() {
   if (mouseButton == LEFT) {
     if (border) grid[(mouseX-borderXSize)/blockSize][(mouseY-borderYSize)/blockSize] = mouseColor;
     else grid[mouseX/blockSize][mouseY/blockSize] = mouseColor;
-    gridHasChanged = true;
+    changeGrid();
   }
   if (mouseButton == RIGHT) {
     colorSelect = (colorSelect+1) % colors.length;
     mouseColor = colors[colorSelect];
   }
-  loop();
 }
 
 void mouseDragged(){
   if (mouseButton == LEFT) {
     if (border) grid[(mouseX-borderXSize)/blockSize][(mouseY-borderYSize)/blockSize] = mouseColor;
     else grid[mouseX/blockSize][mouseY/blockSize] = mouseColor;
-    gridHasChanged = true;
+    changeGrid();
   }
+}
+
+void changeGrid(){
+  gridHasChanged = true;
   loop();
 }
-    
 
 // will advance all ants generationJump generations of movement
 void advanceGenerations(){
@@ -185,8 +187,26 @@ void advanceGenerations(){
       ants[i].move();
     }
   }
-  gridHasChanged = true;
-  loop();
+  changeGrid();
+}
+
+void randomSeedGrid() {
+  int percent = 100;
+  while (true){
+    if(randomThreshold < 1){
+      percent *= 10;
+      randomThreshold *= 10;
+    }
+    else break;
+  }
+  
+  for (int x = 0; x < xSize; x++)
+    for (int y = 0; y < ySize; y++)
+      if(random(percent) <= randomThreshold){
+        int tempColor = int(random(colors.length));
+        grid[x][y] = colors[tempColor];
+      }
+  changeGrid();
 }
 
 // this will keep calling advanceGenerations() till there are fewer than voidThreshold blank spaces
@@ -232,8 +252,7 @@ void zeroGrid() {
   for (int x = 0; x < xSize; x++)
     for (int y = 0; y < ySize; y++)
       grid[x][y] = 0;
-  gridHasChanged = true;
-  loop();
+  changeGrid();
 }
 
 // the Ant will follow the basic Lanton's Ant rules when asked nicely.
