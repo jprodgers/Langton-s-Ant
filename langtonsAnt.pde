@@ -39,7 +39,7 @@ boolean screenSaver = true; // runs the program in fullscreen, and sets the size
                             // screenSaver will respect the block size. Press Esc to quit.
 int xSize           = 600;  // number of blocks wide
 int ySize           = 400;  // number of blocks tall
-int blockSize       = 4;    // size of each block
+int blockSize       = 1;    // size of each block
 boolean worldWrap   = true; // whether the ants wrap around or just "bounce" off the walls
 int numAnts         = 7;    // number of ants you want
 long generationJump = 100;  // the number of generations that will jump between frames
@@ -57,13 +57,16 @@ float randomThreshold  = 1.0;   // percent of cells that will be colored via ran
 boolean fillVoid       = false; // keeps running generations at setup() till there is no space larger than voidThreshold
 int voidThreshold      = 100;   // maximum number of sequential blank spaces before it runs a generation
                                 // if you set voidThreshold too low, it will never stop running for large grids
+boolean fastDraw       = true;  // fastDraw mode only re-draws the frame as needed
+int fastFrameRate      = 120;   // frameRate for the fastDraw mode.
 
 boolean autoSave = false; // will auto save each frame in the sketch directory
 String fileName  = "ants_#####.jpeg"; // the ##s will be replaced by frameCount
 int maxFrames    = 10000; // these can get big for larger resolutions, so be careful
 
 // colors are all in RGB hex values
-int[] colors = {
+int[] colors = { 
+  //#8B4513, #006400, #DAA520, #FF8C00, #556B2F, #8B0000, // fall colors
   #FF0000, #FFA500, #FFFF00, #008000, #0000FF, #4B0082, #8A2BE2, // rainbow colors
   #FF1493, #00FFFF, #008080, #FF00FF, #7FFF00, #FFD700, #00BFFF  // pink, cyan, teal, magenta, chartreuse, gold, sky blue  
 };
@@ -112,6 +115,10 @@ void settings(){ // settings() is new in 3.0+
 }
 
 void setup() {
+  if (fastDraw) {
+    frameRate(fastFrameRate);
+    showGrid = false;
+  }
   grid = new int[xSize][ySize];
   zeroGrid();
   // actually creates the ants
@@ -125,14 +132,14 @@ void setup() {
   if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
   mouseColor = colors[colorSelect]; // sets the mouse color
   showGrid();
-  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show(); 
+  if (showAnts && !fastDraw) for (int i = 0; i < ants.length; i++) ants[i].show(); 
 }
 
 void draw() {
   if (autoAdvance) advanceGenerations();
   if (autoSave) if (frameCount <= maxFrames) saveFrame(fileName);
-  if (gridHasChanged) showGrid();
-  else noLoop();
+  if (gridHasChanged && !fastDraw) showGrid();
+  else if(!fastDraw) noLoop();
 }
 
 void keyPressed() {
@@ -142,7 +149,11 @@ void keyPressed() {
     autoAdvance = !autoAdvance;
     if (autoAdvance) loop();
   }
-  if (key == 'n') zeroGrid();
+  if (key == 'n') {
+    zeroGrid();
+    if (fastDraw) showGrid();
+  }
+    
   if (key == '+') generationJump *= 10;
   if (key == '-') {
     generationJump /= 10;
@@ -154,7 +165,10 @@ void keyPressed() {
     changeGrid();
   }
   if (key == 'x') autoSave = !autoSave;
-  if (key == 't') randomSeedGrid();
+  if (key == 't') {
+    randomSeedGrid();
+    if (fastDraw) showGrid();
+  }
   if (key == '[') {
     if (ants.length > 0) {
       ants = (Ant[]) shorten(ants);
@@ -164,7 +178,7 @@ void keyPressed() {
   if (key == ']') {
     int tempColor = int(random(colors.length));
     ants = (Ant[]) expand(ants, ants.length+1);
-    if (randomColors) ants[ants.length] = new Ant(colors[tempColor], #FFFFFF);
+    if (randomColors) ants[ants.length-1] = new Ant(colors[tempColor], #FFFFFF);
     else if (sequenceColors) ants[ants.length-1] = new Ant(colors[(ants.length-1)%colors.length], #FFFFFF);
     changeGrid();
   }
@@ -190,6 +204,7 @@ void mouseDragged(){
   }
 }
 
+// Used to indicate that the grid needs to be shown, and for loop to resume
 void changeGrid(){
   gridHasChanged = true;
   loop();
@@ -205,6 +220,7 @@ void advanceGenerations(){
   changeGrid();
 }
 
+// Randomly seeds the grid with random colored spaces. Great for more complex movements.
 void randomSeedGrid() {
   int percent = 100;
   while (true){
@@ -242,6 +258,7 @@ void intoTheVoid(){
     if (count < voidThreshold) break;
     else count = 0;
   }
+  if (fastDraw) showGrid();
 }
 
 // displays the grid
@@ -272,11 +289,12 @@ void zeroGrid() {
 
 // the Ant will follow the basic Lanton's Ant rules when asked nicely.
 class Ant {
-  int antX;        // current X location of the Ant
-  int antY;        // current Y location of the Ant
-  int antDirection;// where the Ant is currently looking, though maybe not what
-  int antColor;    // the color the Ant displays when being shown
-  int antFill;     // the color the Ant leave behind in a blank space
+  private int antX;        // current X location of the Ant
+  private int antY;        // current Y location of the Ant
+  private int antDirection;// where the Ant is currently looking, though maybe not what
+  private int antColor;    // the color the Ant displays when being shown
+  private int antFill;     // the color the Ant leave behind in a blank space
+  
   
   // a default ant starts at a random position and direction
   Ant () {
@@ -307,6 +325,14 @@ class Ant {
 
   // the Ant will move according to the Langton's Ant rules.
   void move() {
+    
+    if (fastDraw){
+      noStroke();
+      if (grid[antX][antY] == 0) fill(antFill);
+      else fill(backColor);
+      rect(antX*blockSize, antY*blockSize, blockSize, blockSize);
+    }
+    
     if (antDirection == up) {
       if (grid[antX][antY] == 0) {
         antDirection = left;
@@ -370,7 +396,7 @@ class Ant {
         antY = ySize-1;
         antDirection = up;
       }
-    }
+    }   
   }
   
   // shows the current location of the Ant
@@ -385,5 +411,45 @@ class Ant {
     antX = int(random(xSize));
     antY = int(random(ySize));
     antDirection = int(random(4));
+  }
+  
+  void changeColor(int tempColor){
+    antColor = tempColor;
+  }
+  
+  void changeFill(int tempColor){
+    antFill = tempColor;
+  }
+}
+
+// Debating on building a grid class, but not sure what advantage that would yeild. Leaving this here for now.
+// It is currently unused though.
+class Grid{
+  int sizeX;
+  int sizeY;
+  int startX;
+  int startY;
+  int blockColor;
+  int lineColor;
+  boolean hasLines;
+  int gridArray[][];
+  
+  Grid (int blockTemp){
+    
+  }
+  
+  
+  Grid (int sizeXTemp, int sizeYTemp, int bockTemp){
+    
+  }
+  
+  private void buildGrid(){}
+  
+  void update(int xTemp, int yTemp, int colorTemp){
+    
+  }
+  
+  void fullRedraw(){
+    
   }
 }
