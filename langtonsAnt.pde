@@ -49,6 +49,7 @@ long generationJump = 100;  // the number of generations that will jump between 
 boolean autoAdvance    = true;  // whether the frame advances automatically. Otherwise you have to press space
 boolean randomColors   = false; // random ant colors[] will be chosen, overides sequenceColors
 boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set) to ants
+int colorSet           = 0;     // 0 = rainbow, 1 = fall colors, 2 = contrast
 boolean showAnts       = true;  // disable if you just want the colors to show
 boolean showGrid       = false; // better for smaller resolutions and/or large block sizes 
 boolean border         = false; // creates a one block wide border around the image
@@ -65,10 +66,10 @@ String fileName  = "ants_#####.jpeg"; // the ##s will be replaced by frameCount
 int maxFrames    = 10000; // these can get big for larger resolutions, so be careful
 
 // colors are all in RGB hex values
-int[] colors = { 
-  //#8B4513, #006400, #DAA520, #FF8C00, #556B2F, #8B0000, // fall colors
-  #FF0000, #FFA500, #FFFF00, #008000, #0000FF, #4B0082, #8A2BE2, // rainbow colors
-  #FF1493, #00FFFF, #008080, #FF00FF, #7FFF00, #FFD700, #00BFFF  // pink, cyan, teal, magenta, chartreuse, gold, sky blue  
+int[][] colors = { 
+  {#FF0000, #FFA500, #FFFF00, #008000, #0000FF, #4B0082, #8A2BE2}, // rainbow colors
+  {#8B4513, #006400, #DAA520, #FF8C00, #556B2F, #8B0000},          // fall colors
+  {#FF1493, #00FFFF, #008080, #FF00FF, #7FFF00, #FFD700, #00BFFF}  // pink, cyan, teal, magenta, chartreuse, gold, sky blue 
 };
 
 int fillColor   = #FFFFFF;     // default fill the ants leave behind
@@ -123,14 +124,14 @@ void setup() {
   zeroGrid();
   // actually creates the ants
   for (int i = 0; i < ants.length; i++) {
-    int tempColor = int(random(colors.length));
-    if (randomColors) ants[i] = new Ant(colors[tempColor], #FFFFFF);
-    else if (sequenceColors) ants[i] = new Ant(colors[i%colors.length], #FFFFFF);
+    int tempColor = int(random(colors[colorSet].length));
+    if (randomColors) ants[i] = new Ant(colors[colorSet][tempColor], #FFFFFF);
+    else if (sequenceColors) ants[i] = new Ant(colors[colorSet][i%colors[colorSet].length], #FFFFFF);
     else ants[i] = new Ant();
   }
   if (randomSeed) randomSeedGrid(); // seeds the grid randomly if selected
   if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
-  mouseColor = colors[colorSelect]; // sets the mouse color
+  mouseColor = colors[colorSet][colorSelect]; // sets the mouse color
   showGrid();
   if (showAnts && !fastDraw) for (int i = 0; i < ants.length; i++) ants[i].show(); 
 }
@@ -176,10 +177,10 @@ void keyPressed() {
     }
   }
   if (key == ']') {
-    int tempColor = int(random(colors.length));
+    int tempColor = int(random(colors[colorSet].length));
     ants = (Ant[]) expand(ants, ants.length+1);
-    if (randomColors) ants[ants.length-1] = new Ant(colors[tempColor], #FFFFFF);
-    else if (sequenceColors) ants[ants.length-1] = new Ant(colors[(ants.length-1)%colors.length], #FFFFFF);
+    if (randomColors) ants[ants.length-1] = new Ant(colors[colorSet][tempColor], #FFFFFF);
+    else if (sequenceColors) ants[ants.length-1] = new Ant(colors[colorSet][(ants.length-1)%colors[colorSet].length], #FFFFFF);
     changeGrid();
   }
 }  
@@ -192,7 +193,7 @@ void mousePressed() {
   }
   if (mouseButton == RIGHT) {
     colorSelect = (colorSelect+1) % colors.length;
-    mouseColor = colors[colorSelect];
+    mouseColor = colors[colorSet][colorSelect];
   }
 }
 
@@ -234,8 +235,8 @@ void randomSeedGrid() {
   for (int x = 0; x < xSize; x++)
     for (int y = 0; y < ySize; y++)
       if(random(percent) <= randomThreshold){
-        int tempColor = int(random(colors.length));
-        grid[x][y] = colors[tempColor];
+        int tempColor = int(random(colors[colorSet].length));
+        grid[x][y] = colors[colorSet][tempColor];
       }
   changeGrid();
 }
