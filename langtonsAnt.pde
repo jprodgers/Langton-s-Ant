@@ -180,7 +180,8 @@ void keyPressed() {
     int tempColor = int(random(colors[colorSet].length));
     ants = (Ant[]) expand(ants, ants.length+1);
     if (randomColors) ants[ants.length-1] = new Ant(colors[colorSet][tempColor], #FFFFFF);
-    else if (sequenceColors) ants[ants.length-1] = new Ant(colors[colorSet][(ants.length-1)%colors[colorSet].length], #FFFFFF);
+    else if (sequenceColors) 
+      ants[ants.length-1] = new Ant(colors[colorSet][(ants.length-1)%colors[colorSet].length], #FFFFFF);
     changeGrid();
   }
 }  
@@ -276,7 +277,7 @@ void showGrid() {
       else rect(x*blockSize, y*blockSize, blockSize, blockSize);
     }
   }
-  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show(); // I have no idea why it wants this here instead of in showGrid()
+  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show();
   gridHasChanged = false;
 }
 
@@ -403,7 +404,8 @@ class Ant {
   // shows the current location of the Ant
   void show() {
     fill(antColor);
-    if (border) ellipse(antX*blockSize + blockSize*0.5 + borderXSize, antY*blockSize + blockSize*0.5 + borderYSize, blockSize, blockSize);
+    if (border) 
+      ellipse(antX*blockSize + blockSize*0.5 + borderXSize, antY*blockSize + blockSize*0.5 + borderYSize, blockSize, blockSize);
     else ellipse(antX*blockSize + blockSize*0.5, antY*blockSize + blockSize*0.5, blockSize, blockSize);
   }
   
