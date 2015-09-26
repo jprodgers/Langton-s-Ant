@@ -50,7 +50,7 @@ boolean autoAdvance    = true;  // whether the frame advances automatically. Oth
 boolean randomColors   = false; // random ant colors[] will be chosen, overides sequenceColors
 boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set) to ants
 int colorSet           = 0;     // 0 = rainbow, 1 = fall colors, 2 = contrast
-boolean showAnts       = true;  // disable if you just want the colors to show
+boolean showAnts       = true;  // draws and Ant, best with large blockSize, not compatible with fastDraw mode
 boolean showGrid       = false; // better for smaller resolutions and/or large block sizes 
 boolean border         = false; // creates a one block wide border around the image
 boolean randomSeed     = false; // this will seed the grid randomly with colors on startup
@@ -58,7 +58,7 @@ float randomThreshold  = 1.0;   // percent of cells that will be colored via ran
 boolean fillVoid       = false; // keeps running generations at setup() till there is no space larger than voidThreshold
 int voidThreshold      = 100;   // maximum number of sequential blank spaces before it runs a generation
                                 // if you set voidThreshold too low, it will never stop running for large grids
-boolean fastDraw       = true;  // fastDraw mode only re-draws the frame as needed
+boolean fastDraw       = true;  // fastDraw mode only re-draws the frame as needed, but you lose showAnts and showGrid
 int fastFrameRate      = 120;   // frameRate for the fastDraw mode.
 
 boolean autoSave = false; // will auto save each frame in the sketch directory
@@ -96,7 +96,8 @@ boolean gridHasChanged = false;
 
 void settings(){ // settings() is new in 3.0+
   if (screenSaver){
-    size(displayWidth, displayHeight);
+    if (showAnts && !fastDraw) size(displayWidth, displayHeight, P3D); // P3D is needed for translate()
+    else size(displayWidth, displayHeight);
     pixelDensity(displayDensity());
     xSize = displayWidth/blockSize;
     ySize = displayHeight/blockSize;
@@ -119,6 +120,7 @@ void setup() {
   if (fastDraw) {
     frameRate(fastFrameRate);
     showGrid = false;
+    showAnts = false;
   }
   grid = new int[xSize][ySize];
   zeroGrid();
@@ -133,7 +135,10 @@ void setup() {
   if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
   mouseColor = colors[colorSet][colorSelect]; // sets the mouse color
   showGrid();
-  if (showAnts && !fastDraw) for (int i = 0; i < ants.length; i++) ants[i].show(); 
+  if (showAnts && !fastDraw) {
+    for (int i = 0; i < ants.length; i++) ants[i].show(); 
+    gridHasChanged = true;
+  }
 }
 
 void draw() {
@@ -401,12 +406,52 @@ class Ant {
     }   
   }
   
-  // shows the current location of the Ant
+  // shows the current location of the Ant, by drawing an Ant
   void show() {
+    
     fill(antColor);
-    if (border) 
-      ellipse(antX*blockSize + blockSize*0.5 + borderXSize, antY*blockSize + blockSize*0.5 + borderYSize, blockSize, blockSize);
-    else ellipse(antX*blockSize + blockSize*0.5, antY*blockSize + blockSize*0.5, blockSize, blockSize);
+    int xTemp = int(antX*blockSize + blockSize*0.5 + borderXSize);
+    int yTemp = int(antY*blockSize + blockSize*0.5 + borderYSize);
+    pushMatrix();
+    translate(xTemp, yTemp);
+    switch(antDirection){
+      case up:
+        rotateZ(0);
+        break;
+      case left:
+        rotateZ(-HALF_PI);
+        break;
+      case right:
+        rotateZ(HALF_PI);
+        break;
+      case down:
+        rotateZ(PI);
+        break;
+    }
+    strokeWeight(blockSize/75);
+    ellipseMode(CENTER);
+    fill(antFill);
+    ellipse(0, -blockSize*0.21, blockSize*0.2, blockSize*0.175);
+    ellipse(0, 0, blockSize/4, blockSize/4);
+    ellipse(0, blockSize*0.31, blockSize/4, blockSize*0.375);
+    fill(#FFFFFF);
+    noStroke();
+    ellipse(-blockSize*0.05, -blockSize*0.19, blockSize*0.025, blockSize*0.02);
+    ellipse(blockSize*0.05, -blockSize*0.19, blockSize*0.025, blockSize*0.02);
+    noFill();
+    stroke(blockSize/70);
+    strokeWeight(blockSize/70);
+    arc(blockSize*0.11, -blockSize*0.125, blockSize/8, blockSize/8, 0, HALF_PI);
+    arc(-blockSize*0.11, -blockSize*0.125, blockSize/8, blockSize/8, HALF_PI, PI);
+    arc(blockSize*0.125, -blockSize*0.09, blockSize/8, blockSize/8, 0, HALF_PI);
+    arc(-blockSize*0.125, -blockSize*0.09, blockSize/8, blockSize/8, HALF_PI, PI);
+    arc(blockSize*0.125, blockSize*0.09, blockSize/8, blockSize/8, PI+HALF_PI,TWO_PI);
+    arc(-blockSize*0.125, blockSize*0.09, blockSize/8, blockSize/8, PI, PI+HALF_PI);
+    arc(blockSize*0.11, blockSize*0.125, blockSize/8, blockSize/8, PI+HALF_PI,TWO_PI);
+    arc(-blockSize*0.11, blockSize*0.125, blockSize/8, blockSize/8, PI, PI+HALF_PI);
+    arc(0, -blockSize*0.20, blockSize/6, blockSize/8, PI+QUARTER_PI,TWO_PI-QUARTER_PI);
+    rotateZ(0);
+    popMatrix();
   }
   
   // moves the Ant to a random location and direction. It may be disoriented, but it's an Ant, so I doubt it cares too much.
