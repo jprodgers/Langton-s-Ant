@@ -111,8 +111,19 @@ void settings(){ // settings() is new in 3.0+
   }
   else {
     // this sets the frame size depending on whether you want a border
-    if (border) size((xSize*blockSize + 2*blockSize), (ySize*blockSize + 2*blockSize));
-    else size((xSize*blockSize), (ySize*blockSize));
+    int xTemp, yTemp;
+    if (border) {
+      xTemp = xSize*blockSize + 2*blockSize;
+      yTemp = ySize*blockSize + 2*blockSize;
+    }
+    else {
+      xTemp = xSize*blockSize;
+      yTemp = ySize*blockSize;
+      borderXSize = 0;
+      borderYSize = 0;
+    }
+    if(showAnts) size(xTemp, yTemp, P3D);
+    else size(xTemp, yTemp);
   }
 }
 
@@ -160,9 +171,9 @@ void keyPressed() {
     if (fastDraw) showGrid();
   }
     
-  if (key == '+') generationJump *= 10;
+  if (key == '+') generationJump *= 2;
   if (key == '-') {
-    generationJump /= 10;
+    generationJump /= 2;
     if (generationJump < 1) generationJump = 1;
   }
   if (key == 'v') intoTheVoid();
