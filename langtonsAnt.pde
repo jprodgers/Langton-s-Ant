@@ -1,55 +1,60 @@
 /* 
-Langton's Ant
-Written by Jimmie Rodgers 9/16/15
-Written in Processing 3.0b6
-
-This is a simple two dimentional turring machine.
-The "ant" will move left if the square is empty, or
-right if the square is full. The now vacant square
-will be toggled on/off. This version allows you
-to set different colors for the ants, and they will
-leave a colored space behind.
-
-I was inspired to write this from a Numberphile video:
-https://www.youtube.com/watch?v=NWBToaXK5T0
-
-You can check the wiki page here:
-https://en.wikipedia.org/wiki/Langton%27s_ant
-
-Change varialbes below to play around with settings. Once running
-the following keys work:
-
-space = advances generationJump generations
-a     = toggles autoAdvance
-s     = saves the current frame
-v     = fills in all blank space till voidThreshold is met
-n     = new grid, clears the grid of all colors, but leave the ants
-r     = randomizes ant coordinates and directions, does not clear the grid
-t     = seeds the grid with random colors based on randomThreshold
-x     = starts/stops auto recording
-+     = multiplies the generationJump by 10
--     = divides the generationJump by 10
-[     = deletes one ant
-]     = creates a new ant
-
-*/
+ Langton's Ant
+ Written by Jimmie Rodgers 9/16/15
+ Written in Processing 3.0b6
+ 
+ This is a simple two dimentional turring machine.
+ The "ant" will move left if the square is empty, or
+ right if the square is full. The now vacant square
+ will be toggled on/off. This version allows you
+ to set different colors for the ants, and they will
+ leave a colored space behind.
+ 
+ I was inspired to write this from a Numberphile video:
+ https://www.youtube.com/watch?v=NWBToaXK5T0
+ 
+ You can check the wiki page here:
+ https://en.wikipedia.org/wiki/Langton%27s_ant
+ 
+ Change varialbes below to play around with settings. Once running
+ the following keys work:
+ 
+ space = advances generationJump generations
+ a     = toggles autoAdvance
+ s     = saves the current frame
+ v     = fills in all blank space till voidThreshold is met
+ n     = new grid, clears the grid of all colors, but leave the ants
+ r     = randomizes ant coordinates and directions, does not clear the grid
+ t     = seeds the grid with random colors based on randomThreshold
+ x     = starts/stops auto recording
+ +     = multiplies the generationJump by 10
+ -     = divides the generationJump by 10
+ [     = deletes one ant
+ ]     = creates a new ant
+ 
+ */
 
 // Set the following variables to change program settings.
 boolean screenSaver = true; // runs the program in fullscreen, and sets the size based on screen resolution
-                            // screenSaver will respect the block size. Press Esc to quit.
-int xSize           = 600;  // number of blocks wide
-int ySize           = 400;  // number of blocks tall
+// screenSaver will respect the block size. Press Esc to quit.
+int xSize           = 3840;  // number of blocks wide 3840 
+int ySize           = 2160;  // number of blocks tall 2160
 int blockSize       = 1;    // size of each block
 boolean worldWrap   = true; // whether the ants wrap around or just "bounce" off the walls
-int numAnts         = 7;    // number of ants you want
-long generationJump = 100;  // the number of generations that will jump between frames
-                            // set it to 1 to show every one, or very high for crazy images at high res
-                            // high generationJump can take significant processing time
-                               
+boolean hasSand     = false;
+int numSand = 100000;
+int sandXStart;
+int sandYStart;
+boolean hasAnts     = true;
+int numAnts         = 70;    // number of ants you want
+long generationJump = 1000;  // the number of generations that will jump between frames
+// set it to 1 to show every one, or very high for crazy images at high res
+// high generationJump can take significant processing time
+
 boolean autoAdvance    = true;  // whether the frame advances automatically. Otherwise you have to press space
 boolean randomColors   = false; // random ant colors[] will be chosen, overides sequenceColors
 boolean sequenceColors = true;  // colors will be assigned sequentially (ROYGBIV is first in the set) to ants
-int colorSet           = 0;     // 0 = rainbow, 1 = fall colors, 2 = contrast
+int colorSet           = 1;     // 0 = rainbow, 1 = fall colors, 2 = contrast
 boolean showAnts       = true;  // draws and Ant, best with large blockSize, not compatible with fastDraw mode
 boolean showGrid       = false; // better for smaller resolutions and/or large block sizes 
 boolean border         = false; // creates a one block wide border around the image
@@ -57,18 +62,18 @@ boolean randomSeed     = false; // this will seed the grid randomly with colors 
 float randomThreshold  = 1.0;   // percent of cells that will be colored via randomSeed
 boolean fillVoid       = false; // keeps running generations at setup() till there is no space larger than voidThreshold
 int voidThreshold      = 100;   // maximum number of sequential blank spaces before it runs a generation
-                                // if you set voidThreshold too low, it will never stop running for large grids
-boolean fastDraw       = true;  // fastDraw mode only re-draws the frame as needed, but you lose showAnts and showGrid
+// if you set voidThreshold too low, it will never stop running for large grids
+boolean fastDraw       = false;  // fastDraw mode only re-draws the frame as needed, but you lose showAnts and showGrid
 int fastFrameRate      = 120;   // frameRate for the fastDraw mode.
 
 boolean autoSave = false; // will auto save each frame in the sketch directory
-String fileName  = "ants_#####.jpeg"; // the ##s will be replaced by frameCount
+String fileName  = "ants_#####.tif"; // the ##s will be replaced by frameCount
 int maxFrames    = 10000; // these can get big for larger resolutions, so be careful
 
 // colors are all in RGB hex values
 int[][] colors = { 
   {#FF0000, #FFA500, #FFFF00, #008000, #0000FF, #4B0082, #8A2BE2}, // rainbow colors
-  {#8B4513, #006400, #DAA520, #FF8C00, #556B2F, #8B0000},          // fall colors
+  {#8B4513, #006400, #DAA520, #FF8C00, #556B2F, #8B0000}, // fall colors
   {#FF1493, #00FFFF, #008080, #FF00FF, #7FFF00, #FFD700, #00BFFF}  // pink, cyan, teal, magenta, chartreuse, gold, sky blue 
 };
 
@@ -94,10 +99,10 @@ int grid[][];
 Ant[] ants = new Ant[numAnts];
 boolean gridHasChanged = false;
 
-void settings(){ // settings() is new in 3.0+
-  if (screenSaver){
+void settings() { // settings() is new in 3.0+
+  if (screenSaver) {
     if (showAnts && !fastDraw) size(displayWidth, displayHeight, P3D); // P3D is needed for translate()
-    else size(displayWidth, displayHeight);
+    else size(displayWidth, displayHeight, P2D);
     pixelDensity(displayDensity());
     xSize = displayWidth/blockSize;
     ySize = displayHeight/blockSize;
@@ -107,23 +112,21 @@ void settings(){ // settings() is new in 3.0+
       border = true;
       background = backColor;
     }
-    fullScreen(); 
-  }
-  else {
+    fullScreen();
+  } else {
     // this sets the frame size depending on whether you want a border
     int xTemp, yTemp;
     if (border) {
       xTemp = xSize*blockSize + 2*blockSize;
       yTemp = ySize*blockSize + 2*blockSize;
-    }
-    else {
+    } else {
       xTemp = xSize*blockSize;
       yTemp = ySize*blockSize;
       borderXSize = 0;
       borderYSize = 0;
     }
-    if(showAnts) size(xTemp, yTemp, P3D);
-    else size(xTemp, yTemp);
+    if (showAnts) size(xTemp, yTemp, P3D);
+    else size(xTemp, yTemp, P2D);
   }
 }
 
@@ -136,32 +139,44 @@ void setup() {
   grid = new int[xSize][ySize];
   zeroGrid();
   // actually creates the ants
-  for (int i = 0; i < ants.length; i++) {
-    int tempColor = int(random(colors[colorSet].length));
-    if (randomColors) ants[i] = new Ant(colors[colorSet][tempColor], #FFFFFF);
-    else if (sequenceColors) ants[i] = new Ant(colors[colorSet][i%colors[colorSet].length], #FFFFFF);
-    else ants[i] = new Ant();
+  if (hasAnts) {
+    for (int i = 0; i < ants.length; i++) {
+      int tempColor = int(random(colors[colorSet].length));
+      if (randomColors) ants[i] = new Ant(colors[colorSet][tempColor], #FFFFFF);
+      else if (sequenceColors) ants[i] = new Ant(colors[colorSet][i%colors[colorSet].length], #FFFFFF);
+      else ants[i] = new Ant();
+    }
+  }
+  if (hasSand) {
+    sandXStart = xSize/2;
+    sandYStart = ySize/2;
+    grid[sandXStart][sandYStart] = numSand;
+    gridHasChanged = true;
   }
   if (randomSeed) randomSeedGrid(); // seeds the grid randomly if selected
-  if (fillVoid) intoTheVoid();      // fills the initial frame up if that option is selected
+  if (fillVoid && hasAnts) intoTheVoid();      // fills the initial frame up if that option is selected
   mouseColor = colors[colorSet][colorSelect]; // sets the mouse color
   showGrid();
-  if (showAnts && !fastDraw) {
+  if (hasAnts && showAnts && !fastDraw) {
     for (int i = 0; i < ants.length; i++) ants[i].show(); 
     gridHasChanged = true;
   }
 }
 
 void draw() {
-  if (autoAdvance) advanceGenerations();
+  if (hasAnts && autoAdvance) advanceGenerations();
+  if (hasSand && autoAdvance) moveSand();
   if (autoSave) if (frameCount <= maxFrames) saveFrame(fileName);
   if (gridHasChanged && !fastDraw) showGrid();
-  else if(!fastDraw) noLoop();
+  else if (!fastDraw) noLoop();
 }
 
 void keyPressed() {
   if (key == 's') saveFrame(fileName);
-  if (key == ' ') advanceGenerations();
+  if (key == ' ') {
+    if (hasAnts)advanceGenerations();
+    if (hasSand)moveSand();
+  }
   if (key == 'a') {
     autoAdvance = !autoAdvance;
     if (autoAdvance) loop();
@@ -170,7 +185,7 @@ void keyPressed() {
     zeroGrid();
     if (fastDraw) showGrid();
   }
-    
+
   if (key == '+') generationJump *= 2;
   if (key == '-') {
     generationJump /= 2;
@@ -214,7 +229,7 @@ void mousePressed() {
   }
 }
 
-void mouseDragged(){
+void mouseDragged() {
   if (mouseButton == LEFT) {
     if (border) grid[(mouseX-borderXSize)/blockSize][(mouseY-borderYSize)/blockSize] = mouseColor;
     else grid[mouseX/blockSize][mouseY/blockSize] = mouseColor;
@@ -222,14 +237,51 @@ void mouseDragged(){
   }
 }
 
+void moveSand () {
+  
+  for (int count = 0; count < generationJump; count++) {
+    int tempGrid[][] = new int[xSize][ySize];
+    for (int x = 0; x < xSize; x++) {
+      for (int y = 0; y < ySize; y++) {
+        tempGrid[x][y] += grid[x][y] % 4;
+        if (grid[x][y] >= 4) {
+          int tempVal = grid[x][y] / 4;
+          if (x == 0) {
+            if (worldWrap) tempGrid[xSize][y] += tempVal;
+          } else tempGrid[x-1][y] += tempVal;
+
+          if (x == xSize - 1) {
+            if (worldWrap) tempGrid[0][y] += tempVal;
+          } else tempGrid[x+1][y] += tempVal;
+
+          if (y == 0) {
+            if (worldWrap) tempGrid[x][ySize] += tempVal;
+          } else tempGrid[x][y-1] += tempVal;
+
+          if (y == ySize - 1) {
+            if (worldWrap) tempGrid[x][0] += tempVal;
+          } else tempGrid[x][y+1] += tempVal;
+        }
+      }
+    }
+    
+    
+    for (int x = 0; x < xSize; x++)
+      for (int y = 0; y < ySize; y++)
+        grid[x][y] = tempGrid[x][y];
+  }
+  //println("Moved Sand");
+  changeGrid();
+}
+
 // Used to indicate that the grid needs to be shown, and for loop to resume
-void changeGrid(){
+void changeGrid() {
   gridHasChanged = true;
   loop();
 }
 
 // will advance all ants generationJump generations of movement
-void advanceGenerations(){
+void advanceGenerations() {
   for (int count = 0; count < generationJump; count++) {
     for (int i = 0; i < ants.length; i++) {
       ants[i].move();
@@ -241,17 +293,16 @@ void advanceGenerations(){
 // Randomly seeds the grid with random colored spaces. Great for more complex movements.
 void randomSeedGrid() {
   int percent = 100;
-  while (true){
-    if(randomThreshold < 1){
+  while (true) {
+    if (randomThreshold < 1) {
       percent *= 10;
       randomThreshold *= 10;
-    }
-    else break;
+    } else break;
   }
-  
+
   for (int x = 0; x < xSize; x++)
     for (int y = 0; y < ySize; y++)
-      if(random(percent) <= randomThreshold){
+      if (random(percent) <= randomThreshold) {
         int tempColor = int(random(colors[colorSet].length));
         grid[x][y] = colors[colorSet][tempColor];
       }
@@ -259,9 +310,9 @@ void randomSeedGrid() {
 }
 
 // this will keep calling advanceGenerations() till there are fewer than voidThreshold blank spaces
-void intoTheVoid(){
+void intoTheVoid() {
   int count = 0;
-  while (true){
+  while (true) {
     for (int x = 0; x < xSize; x++) {
       count = 0;
       for (int y = 0; y < ySize; y++) {
@@ -288,12 +339,19 @@ void showGrid() {
   for (int x = 0; x < xSize; x++) {
     for (int y = 0; y < ySize; y++) {
       if (grid[x][y] == 0) fill(backColor); 
-      else fill(grid[x][y]);
+      else if (hasAnts) fill(grid[x][y]);
+      else if (hasSand) {
+        if (grid[x][y] >= 4) fill(colors[colorSet][3]);
+        else {
+          int temp = grid[x][y];
+          fill(colors[colorSet][temp-1]);
+        }
+      }
       if (border) rect(x*blockSize + borderXSize, y*blockSize + borderYSize, blockSize, blockSize);
       else rect(x*blockSize, y*blockSize, blockSize, blockSize);
     }
   }
-  if (showAnts) for (int i = 0; i < ants.length; i++) ants[i].show();
+  if (showAnts && hasAnts) for (int i = 0; i < ants.length; i++) ants[i].show();
   gridHasChanged = false;
 }
 
@@ -312,8 +370,8 @@ class Ant {
   private int antDirection;// where the Ant is currently looking, though maybe not what
   private int antColor;    // the color the Ant displays when being shown
   private int antFill;     // the color the Ant leave behind in a blank space
-  
-  
+
+
   // a default ant starts at a random position and direction
   Ant () {
     antColor = defAntColor;
@@ -331,7 +389,7 @@ class Ant {
     antY = tempY;
     antDirection = dirTemp;
   }
-  
+
   // 2 ints, and you've set what color the Ant fills in, and what color the Ant is when shown
   Ant (int tempFillColor, int tempAntColor) {
     antColor = tempAntColor;
@@ -343,14 +401,14 @@ class Ant {
 
   // the Ant will move according to the Langton's Ant rules.
   void move() {
-    
-    if (fastDraw){
+
+    if (fastDraw) {
       noStroke();
       if (grid[antX][antY] == 0) fill(antFill);
       else fill(backColor);
       rect(antX*blockSize, antY*blockSize, blockSize, blockSize);
     }
-    
+
     if (antDirection == up) {
       if (grid[antX][antY] == 0) {
         antDirection = left;
@@ -414,30 +472,30 @@ class Ant {
         antY = ySize-1;
         antDirection = up;
       }
-    }   
+    }
   }
-  
+
   // shows the current location of the Ant, by drawing an Ant
   void show() {
-    
+
     fill(antColor);
     int xTemp = int(antX*blockSize + blockSize*0.5 + borderXSize);
     int yTemp = int(antY*blockSize + blockSize*0.5 + borderYSize);
     pushMatrix();
     translate(xTemp, yTemp);
-    switch(antDirection){
-      case up:
-        rotateZ(0);
-        break;
-      case left:
-        rotateZ(-HALF_PI);
-        break;
-      case right:
-        rotateZ(HALF_PI);
-        break;
-      case down:
-        rotateZ(PI);
-        break;
+    switch(antDirection) {
+    case up:
+      rotateZ(0);
+      break;
+    case left:
+      rotateZ(-HALF_PI);
+      break;
+    case right:
+      rotateZ(HALF_PI);
+      break;
+    case down:
+      rotateZ(PI);
+      break;
     }
     strokeWeight(blockSize/75);
     ellipseMode(CENTER);
@@ -456,34 +514,34 @@ class Ant {
     arc(-blockSize*0.11, -blockSize*0.125, blockSize/8, blockSize/8, HALF_PI, PI);
     arc(blockSize*0.125, -blockSize*0.09, blockSize/8, blockSize/8, 0, HALF_PI);
     arc(-blockSize*0.125, -blockSize*0.09, blockSize/8, blockSize/8, HALF_PI, PI);
-    arc(blockSize*0.125, blockSize*0.09, blockSize/8, blockSize/8, PI+HALF_PI,TWO_PI);
+    arc(blockSize*0.125, blockSize*0.09, blockSize/8, blockSize/8, PI+HALF_PI, TWO_PI);
     arc(-blockSize*0.125, blockSize*0.09, blockSize/8, blockSize/8, PI, PI+HALF_PI);
-    arc(blockSize*0.11, blockSize*0.125, blockSize/8, blockSize/8, PI+HALF_PI,TWO_PI);
+    arc(blockSize*0.11, blockSize*0.125, blockSize/8, blockSize/8, PI+HALF_PI, TWO_PI);
     arc(-blockSize*0.11, blockSize*0.125, blockSize/8, blockSize/8, PI, PI+HALF_PI);
-    arc(0, -blockSize*0.20, blockSize/6, blockSize/8, PI+QUARTER_PI,TWO_PI-QUARTER_PI);
+    arc(0, -blockSize*0.20, blockSize/6, blockSize/8, PI+QUARTER_PI, TWO_PI-QUARTER_PI);
     rotateZ(0);
     popMatrix();
   }
-  
+
   // moves the Ant to a random location and direction. It may be disoriented, but it's an Ant, so I doubt it cares too much.
-  void randomDirection(){
+  void randomDirection() {
     antX = int(random(xSize));
     antY = int(random(ySize));
     antDirection = int(random(4));
   }
-  
-  void changeColor(int tempColor){
+
+  void changeColor(int tempColor) {
     antColor = tempColor;
   }
-  
-  void changeFill(int tempColor){
+
+  void changeFill(int tempColor) {
     antFill = tempColor;
   }
 }
 
 // Debating on building a grid class, but not sure what advantage that would yeild. Leaving this here for now.
 // It is currently unused though.
-class Grid{
+class Grid {
   int sizeX;
   int sizeY;
   int startX;
@@ -492,23 +550,20 @@ class Grid{
   int lineColor;
   boolean hasLines;
   int gridArray[][];
-  
-  Grid (int blockTemp){
-    
+
+  Grid (int blockTemp) {
   }
-  
-  
-  Grid (int sizeXTemp, int sizeYTemp, int bockTemp){
-    
+
+
+  Grid (int sizeXTemp, int sizeYTemp, int bockTemp) {
   }
-  
-  private void buildGrid(){}
-  
-  void update(int xTemp, int yTemp, int colorTemp){
-    
+
+  private void buildGrid() {
   }
-  
-  void fullRedraw(){
-    
+
+  void update(int xTemp, int yTemp, int colorTemp) {
+  }
+
+  void fullRedraw() {
   }
 }
